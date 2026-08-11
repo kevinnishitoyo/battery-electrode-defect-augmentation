@@ -1,0 +1,265 @@
+"""Generate the project README from experiment artifacts.
+
+Run from any directory:
+
+    python notebooks/multilabel/generate_readme.py
+
+Use ``--check`` in CI to verify that README.md is current without changing it.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+from pathlib import Path
+import sys
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+SPLIT_DIR = PROJECT_ROOT / "data" / "processed" / "multilabel"
+DEFAULT_OUTPUT = PROJECT_ROOT / "README.md"
+LABEL_COLUMNS = ("Surface_Crack", "Delamination", "Pinhole")
+METRIC_FILES = (
+    "baseline_metrics.csv",
+    "weighted_metrics.csv",
+    "oversampling_metrics.csv",
+    "vae_augmented_metrics.csv",
+    "gan_augmented_metrics.csv",
+    "vae_oversampling_metrics.csv",
+)
+
+
+def read_rows(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Required artifact is missing: {path.relative_to(PROJECT_ROOT)}"
+        )
+    with path.open(newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
+
+
+def split_summary(name: str) -> dict[str, int | str]:
+    rows = read_rows(SPLIT_DIR / f"{name}.csv")
+    groups = {row["frame_group"] for row in rows}
+    summary: dict[str, int | str] = {
+        "name": name.capitalize(),
+        "images": len(rows),
+        "groups": len(groups),
+        "multilabel": sum(
+            sum(int(row[label]) for label in LABEL_COLUMNS) > 1 for row in rows
+        ),
+    }
+    for label in LABEL_COLUMNS:
+        summary[label] = sum(int(row[label]) for row in rows)
+    return summary
+
+
+def metric_rows() -> list[dict[str, str]]:
+    rows = []
+    for filename in METRIC_FILES:
+        rows.extend(read_rows(SPLIT_DIR / filename))
+    return rows
+
+
+def score(row: dict[str, str], column: str) -> float:
+    return float(row[column])
+
+
+def fmt(value: str) -> str:
+    return f"{float(value):.4f}"
+
+
+def build_readme() -> str:
+    splits = [split_summary(name) for name in ("train", "val", "test")]
+    metrics = metric_rows()
+    best_macro = max(metrics, key=lambda row: score(row, "Macro F1"))
+    best_exact = max(metrics, key=lambda row: score(row, "Exact Match Accuracy"))
+    oversampling = next(row for row in metrics if row["Model"] == "Oversampling")
+    synthetic = [
+        row for row in metrics if "VAE" in row["Model"] or "GAN" in row["Model"]
+    ]
+    best_synthetic = max(synthetic, key=lambda row: score(row, "Macro F1"))
+    delta = score(best_synthetic, "Macro F1") - score(oversampling, "Macro F1")
+    total_images = sum(int(split["images"]) for split in splits)
+    total_groups = sum(int(split["groups"]) for split in splits)
+
+    split_lines = [
+        "| Split | Images | Source frames | Surface Crack | Delamination | Pinhole | Multilabel images |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for split in splits:
+        split_lines.append(
+            f"| {split['name']} | {split['images']} | {split['groups']} | "
+            f"{split['Surface_Crack']} | {split['Delamination']} | "
+            f"{split['Pinhole']} | {split['multilabel']} |"
+        )
+
+    result_lines = [
+        "| Method | Exact match | Micro F1 | Macro F1 | Surface Crack F1 | Delamination F1 | Pinhole F1 |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in sorted(metrics, key=lambda item: score(item, "Macro F1"), reverse=True):
+        result_lines.append(
+            f"| {row['Model']} | {fmt(row['Exact Match Accuracy'])} | "
+            f"{fmt(row['Micro F1'])} | {fmt(row['Macro F1'])} | "
+            f"{fmt(row['Surface Crack F1'])} | {fmt(row['Delamination F1'])} | "
+            f"{fmt(row['Pinhole F1'])} |"
+        )
+
+    if abs(delta) < 0.005:
+        comparison_text = (
+            f"{best_synthetic['Model']} differs from ordinary oversampling by only "
+            f"{delta:+.4f} macro F1. This is too small to interpret from one seed; "
+            "the two methods should currently be treated as tied."
+        )
+    else:
+        comparison_text = (
+            f"{best_synthetic['Model']} differs from ordinary oversampling by "
+            f"{delta:+.4f} macro F1. Repeated trials are still required before "
+            "claiming a reliable improvement."
+        )
+
+    return f"""# Battery Electrode Defect Augmentation
+
+Synthetic-data augmentation for multilabel lithium-ion battery electrode coating defect classification using a ResNet-18 classifier, conditional VAE, and conditional GAN.
+
+> This README is generated from the frozen split manifests and metric CSVs. Do not edit its result tables manually; run `python notebooks/multilabel/generate_readme.py` instead.
+
+## Research question
+
+Do synthetic minority-defect images improve classification beyond strong non-generative controls such as class weighting and random oversampling?
+
+The three independent targets are Surface Crack, Delamination, and Pinhole. Images can contain more than one recognized defect. Unclassified images and rows without a recognized defect are excluded.
+
+## Experimental protocol
+
+- Source-frame groups are disjoint across train, validation, and test splits.
+- Validation data selects checkpoints; test images remain real and are used only for final metrics.
+- Synthetic images are added only to the training set.
+- All classifier arms use ResNet-18, seed 42, five preliminary epochs, Adam, and a 0.5 decision threshold.
+- Primary metrics are macro F1, micro F1, per-class F1, exact-match accuracy, and Hamming loss.
+
+The current frozen dataset contains {total_images} usable images from {total_groups} source frames.
+
+{chr(10).join(split_lines)}
+
+## Experimental arms
+
+| Method | Change from baseline |
+|---|---|
+| Baseline | Pretrained ResNet-18 with unweighted BCE loss |
+| Weighted BCE | Up-weights minority positive labels in the loss |
+| Oversampling | Samples training images using inverse label frequency |
+| VAE Augmentation | Adds conditional-VAE minority samples to training |
+| GAN Augmentation | Adds conditional-GAN minority samples to training |
+| VAE + Oversampling | Adds VAE samples and applies weighted random sampling |
+
+## Preliminary results
+
+All values below come from one five-epoch run and should not be treated as confidence-tested final results.
+
+{chr(10).join(result_lines)}
+
+The current highest macro F1 is {fmt(best_macro['Macro F1'])} from {best_macro['Model']}. The highest exact-match accuracy is {fmt(best_exact['Exact Match Accuracy'])} from {best_exact['Model']}. {comparison_text}
+
+## Repository layout
+
+```text
+battery-electrode-defect-augmentation/
+├── data/
+│   ├── raw/archive/classification/       # local labels and real images
+│   ├── processed/multilabel/             # frozen splits and metric CSVs
+│   └── synthetic/                        # generated images and metadata
+├── models/multilabel/                    # local checkpoints
+└── notebooks/multilabel/
+    ├── 01_multilabel_exploration.ipynb
+    ├── 02_multilabel_preparation.ipynb
+    ├── 03_multilabel_baseline.ipynb
+    ├── 04_multilabel_weighted.ipynb
+    ├── 05_multilabel_oversampling.ipynb
+    ├── 06_conditional_vae.ipynb
+    ├── 07_vae_generation.ipynb
+    ├── 08_vae_augmented_classifier.ipynb
+    ├── 09_conditional_gan.ipynb
+    ├── 10_gan_augmented_classifier.ipynb
+    ├── 12_vae_oversampling.ipynb
+    ├── 11_multilabel_comparison.ipynb
+    ├── generative_models.py
+    ├── multilabel_utils.py
+    └── generate_readme.py
+```
+
+## Data setup
+
+Place the private dataset under:
+
+```text
+data/raw/archive/classification/
+├── labels.csv
+└── images/
+```
+
+The preparation notebook creates group-separated manifests under `data/processed/multilabel/`.
+
+## Run the experiments
+
+Open Jupyter from `notebooks/multilabel/` and execute notebooks in the order documented in [`notebooks/multilabel/README.md`](notebooks/multilabel/README.md). Run the comparison notebook last.
+
+After metrics change, regenerate this README:
+
+```bash
+python notebooks/multilabel/generate_readme.py
+```
+
+Check that it is current without rewriting it:
+
+```bash
+python notebooks/multilabel/generate_readme.py --check
+```
+
+## Limitations and next steps
+
+- Repeat every classifier arm across at least five seeds and report mean and standard deviation.
+- Use identical early-stopping rules and a larger training budget for every arm.
+- Tune per-class thresholds on validation data, then freeze them before final test evaluation.
+- Compare several synthetic-data quantities against a sample-budget-matched oversampling control.
+- Inspect real/generated grids, diversity, and nearest neighbours before claiming synthetic quality.
+- Move reusable training code into a package with command-line scripts, configuration files, and tests.
+"""
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=DEFAULT_OUTPUT,
+        help="README path (default: project-root README.md)",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Exit non-zero if the output does not match generated content",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    content = build_readme()
+    output = args.output.resolve()
+
+    if args.check:
+        if not output.exists() or output.read_text(encoding="utf-8") != content:
+            print(f"README is stale: {output}", file=sys.stderr)
+            return 1
+        print(f"README is current: {output}")
+        return 0
+
+    output.write_text(content, encoding="utf-8")
+    print(f"Generated {output}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

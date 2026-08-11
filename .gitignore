@@ -1,5 +1,10 @@
-# Data
-data/
+# Data: keep raw/generated images local, but track reproducibility manifests
+# and metric tables used by the README generator.
+data/*
+!data/processed/
+data/processed/*
+!data/processed/multilabel/
+!data/processed/multilabel/*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -222,3 +227,5 @@ __marimo__/
 # Trained model files
 models/*.pth
 models/*.pt
+models/**/*.pth
+models/**/*.pt

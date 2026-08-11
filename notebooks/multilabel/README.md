@@ -25,7 +25,25 @@ Images may retain one, two, or all three recognized defects.
 8. `08_vae_augmented_classifier.ipynb`
 9. `09_conditional_gan.ipynb`
 10. `10_gan_augmented_classifier.ipynb`
-11. `11_multilabel_comparison.ipynb`
+11. `12_vae_oversampling.ipynb`
+12. `11_multilabel_comparison.ipynb`
+
+Run the comparison notebook last so it includes every completed experiment.
+
+## Generate the project README
+
+The top-level README is generated from the frozen split manifests and metric
+CSVs, so its dataset and result tables stay synchronized with the experiments:
+
+```bash
+python notebooks/multilabel/generate_readme.py
+```
+
+Use `--check` in continuous integration to fail when the README is stale:
+
+```bash
+python notebooks/multilabel/generate_readme.py --check
+```
 
 ## Evaluation rules
 
