@@ -229,3 +229,6 @@ models/*.pth
 models/*.pt
 models/**/*.pth
 models/**/*.pt
+
+# Temporary experiment smoke-test outputs
+results/smoke/

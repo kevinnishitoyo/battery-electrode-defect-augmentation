@@ -56,11 +56,17 @@ The current highest macro F1 is 0.9366 from VAE + Oversampling. The highest exac
 
 ```text
 battery-electrode-defect-augmentation/
+├── configs/experiment.json               # shared seeds and hyperparameters
 ├── data/
 │   ├── raw/archive/classification/       # local labels and real images
 │   ├── processed/multilabel/             # frozen splits and metric CSVs
 │   └── synthetic/                        # generated images and metadata
 ├── models/multilabel/                    # local checkpoints
+├── results/                              # per-seed metrics and summaries
+├── scripts/
+│   ├── run_experiments.py                # validation and multi-seed training CLI
+│   └── summarize_results.py              # mean and standard-deviation tables
+├── src/battery_defects/                  # shared experiment pipeline
 └── notebooks/multilabel/
     ├── 01_multilabel_exploration.ipynb
     ├── 02_multilabel_preparation.ipynb
@@ -93,7 +99,26 @@ The preparation notebook creates group-separated manifests under `data/processed
 
 ## Run the experiments
 
-Open Jupyter from `notebooks/multilabel/` and execute notebooks in the order documented in [`notebooks/multilabel/README.md`](notebooks/multilabel/README.md). Run the comparison notebook last.
+Validate all image paths and confirm that source-frame groups are isolated:
+
+```bash
+python scripts/run_experiments.py --validate-only
+```
+
+Run a one-epoch smoke test in a separate result namespace:
+
+```bash
+python scripts/run_experiments.py --method baseline --seed 42 --epochs 1 --run-name smoke --skip-test
+```
+
+Run every method across the five configured seeds:
+
+```bash
+python scripts/run_experiments.py --method all --all-seeds
+python scripts/summarize_results.py
+```
+
+The notebooks remain useful for exploration and generator training. Their execution order is documented in [`notebooks/multilabel/README.md`](notebooks/multilabel/README.md).
 
 After metrics change, regenerate this README:
 
@@ -114,4 +139,4 @@ python notebooks/multilabel/generate_readme.py --check
 - Tune per-class thresholds on validation data, then freeze them before final test evaluation.
 - Compare several synthetic-data quantities against a sample-budget-matched oversampling control.
 - Inspect real/generated grids, diversity, and nearest neighbours before claiming synthetic quality.
-- Move reusable training code into a package with command-line scripts, configuration files, and tests.
+- Add automated tests for split leakage, dataset routing, threshold selection, and metric aggregation.
