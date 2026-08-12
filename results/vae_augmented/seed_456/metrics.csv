@@ -1,0 +1,2 @@
+exact_match_accuracy,hamming_loss,micro_f1,macro_f1,surface_crack_f1,delamination_f1,pinhole_f1,method,seed,device,best_epoch,validation_macro_f1,training_images,evaluation_split
+0.9166666666666666,0.03222222222222222,0.9611780455153949,0.9282787537633445,0.9835466179159049,0.9019607843137255,0.8993288590604027,vae_augmented,456,mps,7,0.9639477987304074,2003,test
