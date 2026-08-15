@@ -307,6 +307,15 @@ def calculate_metrics(
     return metrics
 
 
+def select_evaluation_loader(
+    evaluate_test: bool, val_loader: DataLoader, test_loader: DataLoader
+) -> tuple[DataLoader, str]:
+    """Choose the permitted final loader and label its evaluation split."""
+    if evaluate_test:
+        return test_loader, "test"
+    return val_loader, "validation"
+
+
 def _criterion(method: str, train: pd.DataFrame, device: torch.device) -> nn.Module:
     if method != "weighted":
         return nn.BCEWithLogitsLoss()
@@ -407,14 +416,12 @@ def run_experiment(
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
     model.load_state_dict(checkpoint["model_state_dict"])
     thresholds = np.asarray(checkpoint["thresholds"], dtype=float)
-    if evaluate_test:
-        evaluation_labels, evaluation_probabilities = predict(
-            model, test_loader, device
-        )
-        evaluation_split = "test"
-    else:
-        evaluation_labels, evaluation_probabilities = predict(model, val_loader, device)
-        evaluation_split = "validation"
+    evaluation_loader, evaluation_split = select_evaluation_loader(
+        evaluate_test, val_loader, test_loader
+    )
+    evaluation_labels, evaluation_probabilities = predict(
+        model, evaluation_loader, device
+    )
     metrics = calculate_metrics(
         evaluation_labels, evaluation_probabilities, thresholds
     )

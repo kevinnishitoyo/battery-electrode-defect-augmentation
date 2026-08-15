@@ -226,6 +226,7 @@ battery-electrode-defect-augmentation/
 │   ├── summarize_results.py              # mean and standard-deviation tables
 │   └── analyze_results.py                # paired tests and result figures
 ├── src/battery_defects/                  # shared experiment pipeline
+├── tests/                                # data, training-protocol, and analysis checks
 └── notebooks/multilabel/
     ├── 01_multilabel_exploration.ipynb
     ├── 02_multilabel_preparation.ipynb
@@ -292,12 +293,17 @@ Check that it is current without rewriting it:
 python notebooks/multilabel/generate_readme.py --check
 ```
 
+Run the automated tests:
+
+```bash
+python -m pytest -q
+```
+
 ## Limitations and next steps
 
 - Five seeds quantify training variability, but the results still come from one fixed dataset split.
 - Compare several synthetic-data quantities against a sample-budget-matched oversampling control.
 - Inspect real/generated grids, diversity, and nearest neighbours before claiming synthetic quality.
-- Add automated tests for split leakage, dataset routing, threshold selection, and metric aggregation.
 """
 
 
