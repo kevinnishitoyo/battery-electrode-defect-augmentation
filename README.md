@@ -78,6 +78,14 @@ Oversampling wins four or five of the five paired seeds against every comparator
 
 ![Paired macro F1 by training seed](results/figures/macro_f1_by_seed.png)
 
+### Qualitative examples
+
+![Real battery-electrode defect examples](results/figures/real_defect_examples.png)
+
+![Real versus conditional VAE and GAN samples](results/figures/vae_gan_comparison.png)
+
+The learned generators capture broad electrode color and texture, but the VAE samples are visibly blurred and many GAN samples lack the distinct conditioned defect structures present in real images. This qualitative gap is consistent with synthetic augmentation failing to outperform ordinary oversampling.
+
 ## Repository layout
 
 ```text
@@ -92,7 +100,8 @@ battery-electrode-defect-augmentation/
 ├── scripts/
 │   ├── run_experiments.py                # validation and multi-seed training CLI
 │   ├── summarize_results.py              # mean and standard-deviation tables
-│   └── analyze_results.py                # paired tests and result figures
+│   ├── analyze_results.py                # paired tests and result figures
+│   └── plot_qualitative_examples.py       # real/VAE/GAN example grids
 ├── src/battery_defects/                  # shared experiment pipeline
 ├── tests/                                # data, training-protocol, and analysis checks
 └── notebooks/multilabel/
@@ -145,6 +154,12 @@ Run every method across the five configured seeds:
 python scripts/run_experiments.py --method all --all-seeds
 python scripts/summarize_results.py
 python scripts/analyze_results.py
+```
+
+Regenerate the qualitative image grids:
+
+```bash
+python scripts/plot_qualitative_examples.py
 ```
 
 The notebooks remain useful for exploration and generator training. Their execution order is documented in [`notebooks/multilabel/README.md`](notebooks/multilabel/README.md).
