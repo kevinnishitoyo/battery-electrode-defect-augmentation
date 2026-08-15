@@ -1,5 +1,9 @@
 # Data: keep raw/generated images local, but track reproducibility manifests
 # and metric tables used by the README generator.
+# macOS metadata
+.DS_Store
+**/.DS_Store
+
 data/*
 !data/processed/
 data/processed/*
