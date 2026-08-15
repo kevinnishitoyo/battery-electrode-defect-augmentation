@@ -15,7 +15,9 @@ The three independent targets are Surface Crack, Delamination, and Pinhole. Imag
 - Source-frame groups are disjoint across train, validation, and test splits.
 - Validation data selects checkpoints; test images remain real and are used only for final metrics.
 - Synthetic images are added only to the training set.
-- All classifier arms use ResNet-18, seed 42, five preliminary epochs, Adam, and a 0.5 decision threshold.
+- All classifier arms use ResNet-18, Adam, and the same five seeds: 42, 123, 456, 789, and 2026.
+- Training runs for at most 30 epochs with patience-5 early stopping on validation macro F1.
+- Per-class decision thresholds are selected on validation data and then frozen for real-only test evaluation.
 - Primary metrics are macro F1, micro F1, per-class F1, exact-match accuracy, and Hamming loss.
 
 The current frozen dataset contains 2105 usable images from 359 source frames.
@@ -37,20 +39,22 @@ The current frozen dataset contains 2105 usable images from 359 source frames.
 | GAN Augmentation | Adds conditional-GAN minority samples to training |
 | VAE + Oversampling | Adds VAE samples and applies weighted random sampling |
 
-## Preliminary results
+## Five-seed results
 
-All values below come from one five-epoch run and should not be treated as confidence-tested final results.
+Values are mean ± sample standard deviation across five seeds. Every method uses the same frozen source-frame splits and evaluation protocol.
 
-| Method | Exact match | Micro F1 | Macro F1 | Surface Crack F1 | Delamination F1 | Pinhole F1 |
-|---|---:|---:|---:|---:|---:|---:|
-| VAE + Oversampling | 0.9333 | 0.9667 | 0.9366 | 0.9819 | 0.8936 | 0.9342 |
-| Oversampling | 0.9233 | 0.9663 | 0.9362 | 0.9816 | 0.8936 | 0.9333 |
-| Baseline | 0.9300 | 0.9664 | 0.9292 | 0.9856 | 0.8800 | 0.9220 |
-| Weighted BCE | 0.8800 | 0.9458 | 0.9129 | 0.9727 | 0.8980 | 0.8679 |
-| GAN Augmentation | 0.9267 | 0.9647 | 0.8847 | 0.9909 | 0.7317 | 0.9315 |
-| VAE Augmentation | 0.9033 | 0.9545 | 0.8816 | 0.9760 | 0.7317 | 0.9371 |
+| Method | Runs | Exact match | Micro F1 | Macro F1 | Surface Crack F1 | Delamination F1 | Pinhole F1 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Oversampling | 5 | 0.9360 ± 0.0098 | 0.9723 ± 0.0039 | 0.9498 ± 0.0106 | 0.9862 ± 0.0020 | 0.9268 ± 0.0315 | 0.9364 ± 0.0198 |
+| VAE Augmentation | 5 | 0.9320 ± 0.0126 | 0.9680 ± 0.0069 | 0.9391 ± 0.0142 | 0.9854 ± 0.0037 | 0.9082 ± 0.0306 | 0.9237 ± 0.0177 |
+| GAN Augmentation | 5 | 0.9360 ± 0.0068 | 0.9686 ± 0.0040 | 0.9386 ± 0.0100 | 0.9855 ± 0.0037 | 0.9048 ± 0.0263 | 0.9254 ± 0.0112 |
+| VAE + Oversampling | 5 | 0.9447 ± 0.0128 | 0.9720 ± 0.0054 | 0.9372 ± 0.0064 | 0.9898 ± 0.0025 | 0.8881 ± 0.0177 | 0.9338 ± 0.0244 |
+| Baseline | 5 | 0.9340 ± 0.0060 | 0.9687 ± 0.0045 | 0.9364 ± 0.0151 | 0.9873 ± 0.0034 | 0.9004 ± 0.0427 | 0.9217 ± 0.0093 |
+| Weighted BCE | 5 | 0.9080 ± 0.0205 | 0.9588 ± 0.0083 | 0.9349 ± 0.0086 | 0.9743 ± 0.0094 | 0.9123 ± 0.0212 | 0.9181 ± 0.0106 |
 
-The current highest macro F1 is 0.9366 from VAE + Oversampling. The highest exact-match accuracy is 0.9333 from VAE + Oversampling. VAE + Oversampling differs from ordinary oversampling by only +0.0004 macro F1. This is too small to interpret from one seed; the two methods should currently be treated as tied.
+The highest mean macro F1 is 0.9498 from Oversampling. The highest mean exact-match accuracy is 0.9447 from VAE + Oversampling. The strongest synthetic-only arm, VAE Augmentation, trails ordinary oversampling by 0.0107 mean macro F1. Adding VAE samples to oversampling also trails ordinary oversampling by 0.0126, largely because its mean Delamination F1 falls to 0.8881.
+
+The main finding is that ordinary random oversampling is the strongest overall method. Learned synthetic augmentation does not improve macro F1 beyond this simpler non-generative control.
 
 ## Repository layout
 
@@ -134,9 +138,8 @@ python notebooks/multilabel/generate_readme.py --check
 
 ## Limitations and next steps
 
-- Repeat every classifier arm across at least five seeds and report mean and standard deviation.
-- Use identical early-stopping rules and a larger training budget for every arm.
-- Tune per-class thresholds on validation data, then freeze them before final test evaluation.
+- Five seeds quantify training variability, but the results still come from one fixed dataset split.
+- Add paired confidence intervals or a paired significance analysis across seeds.
 - Compare several synthetic-data quantities against a sample-budget-matched oversampling control.
 - Inspect real/generated grids, diversity, and nearest neighbours before claiming synthetic quality.
 - Add automated tests for split leakage, dataset routing, threshold selection, and metric aggregation.

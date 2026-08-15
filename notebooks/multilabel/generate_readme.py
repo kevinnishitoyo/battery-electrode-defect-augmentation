@@ -18,15 +18,16 @@ import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SPLIT_DIR = PROJECT_ROOT / "data" / "processed" / "multilabel"
 DEFAULT_OUTPUT = PROJECT_ROOT / "README.md"
+SUMMARY_FILE = PROJECT_ROOT / "results" / "summary.csv"
 LABEL_COLUMNS = ("Surface_Crack", "Delamination", "Pinhole")
-METRIC_FILES = (
-    "baseline_metrics.csv",
-    "weighted_metrics.csv",
-    "oversampling_metrics.csv",
-    "vae_augmented_metrics.csv",
-    "gan_augmented_metrics.csv",
-    "vae_oversampling_metrics.csv",
-)
+METHOD_NAMES = {
+    "baseline": "Baseline",
+    "weighted": "Weighted BCE",
+    "oversampling": "Oversampling",
+    "vae_augmented": "VAE Augmentation",
+    "gan_augmented": "GAN Augmentation",
+    "vae_oversampling": "VAE + Oversampling",
+}
 
 
 def read_rows(path: Path) -> list[dict[str, str]]:
@@ -54,13 +55,6 @@ def split_summary(name: str) -> dict[str, int | str]:
     return summary
 
 
-def metric_rows() -> list[dict[str, str]]:
-    rows = []
-    for filename in METRIC_FILES:
-        rows.extend(read_rows(SPLIT_DIR / filename))
-    return rows
-
-
 def score(row: dict[str, str], column: str) -> float:
     return float(row[column])
 
@@ -69,17 +63,33 @@ def fmt(value: str) -> str:
     return f"{float(value):.4f}"
 
 
+def fmt_mean_std(row: dict[str, str], metric: str) -> str:
+    return f"{fmt(row[f'{metric}_mean'])} ± {fmt(row[f'{metric}_std'])}"
+
+
 def build_readme() -> str:
     splits = [split_summary(name) for name in ("train", "val", "test")]
-    metrics = metric_rows()
-    best_macro = max(metrics, key=lambda row: score(row, "Macro F1"))
-    best_exact = max(metrics, key=lambda row: score(row, "Exact Match Accuracy"))
-    oversampling = next(row for row in metrics if row["Model"] == "Oversampling")
-    synthetic = [
-        row for row in metrics if "VAE" in row["Model"] or "GAN" in row["Model"]
+    metrics = read_rows(SUMMARY_FILE)
+    best_macro = max(metrics, key=lambda row: score(row, "macro_f1_mean"))
+    best_exact = max(
+        metrics, key=lambda row: score(row, "exact_match_accuracy_mean")
+    )
+    oversampling = next(row for row in metrics if row["method"] == "oversampling")
+    vae_oversampling = next(
+        row for row in metrics if row["method"] == "vae_oversampling"
+    )
+    synthetic_only = [
+        row for row in metrics if row["method"] in {"vae_augmented", "gan_augmented"}
     ]
-    best_synthetic = max(synthetic, key=lambda row: score(row, "Macro F1"))
-    delta = score(best_synthetic, "Macro F1") - score(oversampling, "Macro F1")
+    best_synthetic_only = max(
+        synthetic_only, key=lambda row: score(row, "macro_f1_mean")
+    )
+    synthetic_delta = score(
+        best_synthetic_only, "macro_f1_mean"
+    ) - score(oversampling, "macro_f1_mean")
+    combined_delta = score(
+        vae_oversampling, "macro_f1_mean"
+    ) - score(oversampling, "macro_f1_mean")
     total_images = sum(int(split["images"]) for split in splits)
     total_groups = sum(int(split["groups"]) for split in splits)
 
@@ -95,29 +105,30 @@ def build_readme() -> str:
         )
 
     result_lines = [
-        "| Method | Exact match | Micro F1 | Macro F1 | Surface Crack F1 | Delamination F1 | Pinhole F1 |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "| Method | Runs | Exact match | Micro F1 | Macro F1 | Surface Crack F1 | Delamination F1 | Pinhole F1 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
-    for row in sorted(metrics, key=lambda item: score(item, "Macro F1"), reverse=True):
+    for row in sorted(
+        metrics, key=lambda item: score(item, "macro_f1_mean"), reverse=True
+    ):
         result_lines.append(
-            f"| {row['Model']} | {fmt(row['Exact Match Accuracy'])} | "
-            f"{fmt(row['Micro F1'])} | {fmt(row['Macro F1'])} | "
-            f"{fmt(row['Surface Crack F1'])} | {fmt(row['Delamination F1'])} | "
-            f"{fmt(row['Pinhole F1'])} |"
+            f"| {METHOD_NAMES[row['method']]} | {row['runs']} | "
+            f"{fmt_mean_std(row, 'exact_match_accuracy')} | "
+            f"{fmt_mean_std(row, 'micro_f1')} | "
+            f"{fmt_mean_std(row, 'macro_f1')} | "
+            f"{fmt_mean_std(row, 'surface_crack_f1')} | "
+            f"{fmt_mean_std(row, 'delamination_f1')} | "
+            f"{fmt_mean_std(row, 'pinhole_f1')} |"
         )
 
-    if abs(delta) < 0.005:
-        comparison_text = (
-            f"{best_synthetic['Model']} differs from ordinary oversampling by only "
-            f"{delta:+.4f} macro F1. This is too small to interpret from one seed; "
-            "the two methods should currently be treated as tied."
-        )
-    else:
-        comparison_text = (
-            f"{best_synthetic['Model']} differs from ordinary oversampling by "
-            f"{delta:+.4f} macro F1. Repeated trials are still required before "
-            "claiming a reliable improvement."
-        )
+    comparison_text = (
+        f"The strongest synthetic-only arm, "
+        f"{METHOD_NAMES[best_synthetic_only['method']]}, trails ordinary "
+        f"oversampling by {abs(synthetic_delta):.4f} mean macro F1. Adding VAE "
+        f"samples to oversampling also trails ordinary oversampling by "
+        f"{abs(combined_delta):.4f}, largely because its mean Delamination F1 "
+        f"falls to {fmt(vae_oversampling['delamination_f1_mean'])}."
+    )
 
     return f"""# Battery Electrode Defect Augmentation
 
@@ -136,7 +147,9 @@ The three independent targets are Surface Crack, Delamination, and Pinhole. Imag
 - Source-frame groups are disjoint across train, validation, and test splits.
 - Validation data selects checkpoints; test images remain real and are used only for final metrics.
 - Synthetic images are added only to the training set.
-- All classifier arms use ResNet-18, seed 42, five preliminary epochs, Adam, and a 0.5 decision threshold.
+- All classifier arms use ResNet-18, Adam, and the same five seeds: 42, 123, 456, 789, and 2026.
+- Training runs for at most 30 epochs with patience-5 early stopping on validation macro F1.
+- Per-class decision thresholds are selected on validation data and then frozen for real-only test evaluation.
 - Primary metrics are macro F1, micro F1, per-class F1, exact-match accuracy, and Hamming loss.
 
 The current frozen dataset contains {total_images} usable images from {total_groups} source frames.
@@ -154,13 +167,15 @@ The current frozen dataset contains {total_images} usable images from {total_gro
 | GAN Augmentation | Adds conditional-GAN minority samples to training |
 | VAE + Oversampling | Adds VAE samples and applies weighted random sampling |
 
-## Preliminary results
+## Five-seed results
 
-All values below come from one five-epoch run and should not be treated as confidence-tested final results.
+Values are mean ± sample standard deviation across five seeds. Every method uses the same frozen source-frame splits and evaluation protocol.
 
 {chr(10).join(result_lines)}
 
-The current highest macro F1 is {fmt(best_macro['Macro F1'])} from {best_macro['Model']}. The highest exact-match accuracy is {fmt(best_exact['Exact Match Accuracy'])} from {best_exact['Model']}. {comparison_text}
+The highest mean macro F1 is {fmt(best_macro['macro_f1_mean'])} from {METHOD_NAMES[best_macro['method']]}. The highest mean exact-match accuracy is {fmt(best_exact['exact_match_accuracy_mean'])} from {METHOD_NAMES[best_exact['method']]}. {comparison_text}
+
+The main finding is that ordinary random oversampling is the strongest overall method. Learned synthetic augmentation does not improve macro F1 beyond this simpler non-generative control.
 
 ## Repository layout
 
@@ -244,9 +259,8 @@ python notebooks/multilabel/generate_readme.py --check
 
 ## Limitations and next steps
 
-- Repeat every classifier arm across at least five seeds and report mean and standard deviation.
-- Use identical early-stopping rules and a larger training budget for every arm.
-- Tune per-class thresholds on validation data, then freeze them before final test evaluation.
+- Five seeds quantify training variability, but the results still come from one fixed dataset split.
+- Add paired confidence intervals or a paired significance analysis across seeds.
 - Compare several synthetic-data quantities against a sample-budget-matched oversampling control.
 - Inspect real/generated grids, diversity, and nearest neighbours before claiming synthetic quality.
 - Add automated tests for split leakage, dataset routing, threshold selection, and metric aggregation.
