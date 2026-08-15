@@ -3,19 +3,18 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import random
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
+import torch
 from PIL import Image
 from sklearn.metrics import accuracy_score, f1_score, hamming_loss
-import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from torchvision import models, transforms
-
 
 LABEL_COLUMNS = ["Surface_Crack", "Delamination", "Pinhole"]
 CLASS_NAMES = ["Surface Crack", "Delamination", "Pinhole"]

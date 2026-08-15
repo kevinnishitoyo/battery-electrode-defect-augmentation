@@ -1,22 +1,20 @@
 """Shared, beginner-friendly utilities for the multilabel experiments."""
 
-from pathlib import Path
 import random
+from pathlib import Path
 
 import numpy as np
-import pandas as pd
-from PIL import Image
 import torch
-from torch import nn
-from torch.utils.data import Dataset
-from torchvision import models, transforms
+from PIL import Image
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
     f1_score,
     hamming_loss,
 )
-
+from torch import nn
+from torch.utils.data import Dataset
+from torchvision import models, transforms
 
 LABEL_COLUMNS = ["Surface_Crack", "Delamination", "Pinhole"]
 CLASS_NAMES = ["Surface Crack", "Delamination", "Pinhole"]
