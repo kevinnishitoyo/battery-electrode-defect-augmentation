@@ -15,7 +15,6 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REAL_IMAGE_DIR = (
     PROJECT_ROOT / "data" / "raw" / "archive" / "classification" / "images"

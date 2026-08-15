@@ -1,9 +1,9 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import numpy as np
+import pytest
 from torch.utils.data import RandomSampler, SequentialSampler, WeightedRandomSampler
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
@@ -20,6 +20,7 @@ from battery_defects.experiment import (
 )
 
 
+@pytest.mark.data
 def test_complete_dataset_and_split_isolation():
     summary = validate_experiment_data(PROJECT_ROOT)
     assert summary == {
@@ -40,7 +41,7 @@ def test_source_frame_groups_are_disjoint():
     assert groups["train"].isdisjoint(groups["test"])
     assert groups["val"].isdisjoint(groups["test"])
 
-
+@pytest.mark.data
 def test_synthetic_images_are_added_only_to_training():
     splits = load_splits(PROJECT_ROOT)
     augmented = build_training_frame("vae_augmented", splits, PROJECT_ROOT)

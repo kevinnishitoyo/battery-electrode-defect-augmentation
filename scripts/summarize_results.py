@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 METRICS = [
     "exact_match_accuracy",

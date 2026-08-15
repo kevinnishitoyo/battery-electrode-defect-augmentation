@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          version: "0.12.5"
+
+      - name: Install project
+        run: uv sync --locked --dev
+
+      - name: Check code quality
+        run: uv run ruff check src scripts tests notebooks/multilabel/*.py
+
+      - name: Run data-independent tests
+        run: uv run pytest -q -m "not data"
+
+      - name: Check generated README
+        run: uv run python notebooks/multilabel/generate_readme.py --check
