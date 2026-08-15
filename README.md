@@ -2,7 +2,7 @@
 
 Synthetic-data augmentation for multilabel lithium-ion battery electrode coating defect classification using a ResNet-18 classifier, conditional VAE, and conditional GAN.
 
-> This README is generated from the frozen split manifests and metric CSVs. Do not edit its result tables manually; run `python notebooks/multilabel/generate_readme.py` instead.
+> This README is generated from the frozen split manifests and metric CSVs. Do not edit its result tables manually; run `uv run python notebooks/multilabel/generate_readme.py` instead.
 
 ## Research question
 
@@ -121,7 +121,28 @@ battery-electrode-defect-augmentation/
     ├── multilabel_utils.py
     └── generate_readme.py
 ```
+## Installation
 
+This project uses Python 3.12 and [`uv`](https://docs.astral.sh/uv/) for reproducible dependency management.
+
+Clone the repository and enter its directory:
+
+```bash
+git clone https://github.com/kevinnishitoyo/battery-electrode-defect-augmentation.git
+cd battery-electrode-defect-augmentation
+```
+
+Create the virtual environment and install the locked dependencies:
+
+```bash
+uv sync
+```
+
+Verify the installation using tests that do not require private image files:
+
+```bash
+uv run pytest -q -m "not data"
+```
 ## Data setup
 
 Place the private dataset under:
@@ -139,27 +160,27 @@ The preparation notebook creates group-separated manifests under `data/processed
 Validate all image paths and confirm that source-frame groups are isolated:
 
 ```bash
-python scripts/run_experiments.py --validate-only
+uv run python scripts/run_experiments.py --validate-only
 ```
 
 Run a one-epoch smoke test in a separate result namespace:
 
 ```bash
-python scripts/run_experiments.py --method baseline --seed 42 --epochs 1 --run-name smoke --skip-test
+uv run python scripts/run_experiments.py --method baseline --seed 42 --epochs 1 --run-name smoke --skip-test
 ```
 
 Run every method across the five configured seeds:
 
 ```bash
-python scripts/run_experiments.py --method all --all-seeds
-python scripts/summarize_results.py
-python scripts/analyze_results.py
+uv run python scripts/run_experiments.py --method all --all-seeds
+uv run python scripts/summarize_results.py
+uv run python scripts/analyze_results.py
 ```
 
 Regenerate the qualitative image grids:
 
 ```bash
-python scripts/plot_qualitative_examples.py
+uv run python scripts/plot_qualitative_examples.py
 ```
 
 The notebooks remain useful for exploration and generator training. Their execution order is documented in [`notebooks/multilabel/README.md`](notebooks/multilabel/README.md).
@@ -167,19 +188,19 @@ The notebooks remain useful for exploration and generator training. Their execut
 After metrics change, regenerate this README:
 
 ```bash
-python notebooks/multilabel/generate_readme.py
+uv run python notebooks/multilabel/generate_readme.py
 ```
 
 Check that it is current without rewriting it:
 
 ```bash
-python notebooks/multilabel/generate_readme.py --check
+uv run python notebooks/multilabel/generate_readme.py --check
 ```
 
 Run the automated tests:
 
 ```bash
-python -m pytest -q
+uv run pytest -q
 ```
 
 ## Limitations and next steps
