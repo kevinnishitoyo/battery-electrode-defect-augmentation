@@ -56,6 +56,28 @@ The highest mean macro F1 is 0.9498 from Oversampling. The highest mean exact-ma
 
 The main finding is that ordinary random oversampling is the strongest overall method. Learned synthetic augmentation does not improve macro F1 beyond this simpler non-generative control.
 
+## Paired analysis
+
+Because every method uses the same five seeds, macro-F1 differences can be paired by seed. Positive differences favor oversampling.
+
+| Comparison | Mean macro-F1 difference | Bootstrap 95% CI | Seed wins | Exact p | Holm-adjusted p |
+|---|---:|---:|---:|---:|---:|
+| Oversampling - Weighted BCE | 0.0149 | [0.0033, 0.0299] | 5/5 | 0.0625 | 0.3125 |
+| Oversampling - Baseline | 0.0134 | [0.0011, 0.0255] | 4/5 | 0.1875 | 0.5625 |
+| Oversampling - VAE + Oversampling | 0.0126 | [0.0007, 0.0232] | 4/5 | 0.1875 | 0.5625 |
+| Oversampling - GAN Augmentation | 0.0113 | [-0.0028, 0.0210] | 4/5 | 0.1250 | 0.5000 |
+| Oversampling - VAE Augmentation | 0.0107 | [-0.0039, 0.0254] | 4/5 | 0.3125 | 0.5625 |
+
+Oversampling wins four or five of the five paired seeds against every comparator. However, with only five pairs the exact sign-flip test has coarse resolution, and no comparison remains significant after Holm correction. The result therefore supports a consistent positive effect for oversampling, but not a definitive formal significance claim.
+
+## Figures
+
+![Five-seed macro F1 comparison](results/figures/macro_f1_comparison.png)
+
+![Per-class F1 comparison](results/figures/per_class_f1_comparison.png)
+
+![Paired macro F1 by training seed](results/figures/macro_f1_by_seed.png)
+
 ## Repository layout
 
 ```text
@@ -69,7 +91,8 @@ battery-electrode-defect-augmentation/
 ├── results/                              # per-seed metrics and summaries
 ├── scripts/
 │   ├── run_experiments.py                # validation and multi-seed training CLI
-│   └── summarize_results.py              # mean and standard-deviation tables
+│   ├── summarize_results.py              # mean and standard-deviation tables
+│   └── analyze_results.py                # paired tests and result figures
 ├── src/battery_defects/                  # shared experiment pipeline
 └── notebooks/multilabel/
     ├── 01_multilabel_exploration.ipynb
@@ -120,6 +143,7 @@ Run every method across the five configured seeds:
 ```bash
 python scripts/run_experiments.py --method all --all-seeds
 python scripts/summarize_results.py
+python scripts/analyze_results.py
 ```
 
 The notebooks remain useful for exploration and generator training. Their execution order is documented in [`notebooks/multilabel/README.md`](notebooks/multilabel/README.md).
@@ -139,7 +163,6 @@ python notebooks/multilabel/generate_readme.py --check
 ## Limitations and next steps
 
 - Five seeds quantify training variability, but the results still come from one fixed dataset split.
-- Add paired confidence intervals or a paired significance analysis across seeds.
 - Compare several synthetic-data quantities against a sample-budget-matched oversampling control.
 - Inspect real/generated grids, diversity, and nearest neighbours before claiming synthetic quality.
 - Add automated tests for split leakage, dataset routing, threshold selection, and metric aggregation.

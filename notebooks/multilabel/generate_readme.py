@@ -19,6 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SPLIT_DIR = PROJECT_ROOT / "data" / "processed" / "multilabel"
 DEFAULT_OUTPUT = PROJECT_ROOT / "README.md"
 SUMMARY_FILE = PROJECT_ROOT / "results" / "summary.csv"
+PAIRED_FILE = PROJECT_ROOT / "results" / "paired_comparisons.csv"
 LABEL_COLUMNS = ("Surface_Crack", "Delamination", "Pinhole")
 METHOD_NAMES = {
     "baseline": "Baseline",
@@ -92,6 +93,7 @@ def build_readme() -> str:
     ) - score(oversampling, "macro_f1_mean")
     total_images = sum(int(split["images"]) for split in splits)
     total_groups = sum(int(split["groups"]) for split in splits)
+    paired = read_rows(PAIRED_FILE)
 
     split_lines = [
         "| Split | Images | Source frames | Surface Crack | Delamination | Pinhole | Multilabel images |",
@@ -129,6 +131,21 @@ def build_readme() -> str:
         f"{abs(combined_delta):.4f}, largely because its mean Delamination F1 "
         f"falls to {fmt(vae_oversampling['delamination_f1_mean'])}."
     )
+
+    paired_lines = [
+        "| Comparison | Mean macro-F1 difference | Bootstrap 95% CI | Seed wins | Exact p | Holm-adjusted p |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for row in paired:
+        paired_lines.append(
+            f"| {row['comparison']} | "
+            f"{fmt(row['mean_macro_f1_difference'])} | "
+            f"[{fmt(row['bootstrap_ci_95_lower'])}, "
+            f"{fmt(row['bootstrap_ci_95_upper'])}] | "
+            f"{row['oversampling_wins']}/5 | "
+            f"{fmt(row['exact_permutation_pvalue'])} | "
+            f"{fmt(row['holm_adjusted_pvalue'])} |"
+        )
 
     return f"""# Battery Electrode Defect Augmentation
 
@@ -177,6 +194,22 @@ The highest mean macro F1 is {fmt(best_macro['macro_f1_mean'])} from {METHOD_NAM
 
 The main finding is that ordinary random oversampling is the strongest overall method. Learned synthetic augmentation does not improve macro F1 beyond this simpler non-generative control.
 
+## Paired analysis
+
+Because every method uses the same five seeds, macro-F1 differences can be paired by seed. Positive differences favor oversampling.
+
+{chr(10).join(paired_lines)}
+
+Oversampling wins four or five of the five paired seeds against every comparator. However, with only five pairs the exact sign-flip test has coarse resolution, and no comparison remains significant after Holm correction. The result therefore supports a consistent positive effect for oversampling, but not a definitive formal significance claim.
+
+## Figures
+
+![Five-seed macro F1 comparison](results/figures/macro_f1_comparison.png)
+
+![Per-class F1 comparison](results/figures/per_class_f1_comparison.png)
+
+![Paired macro F1 by training seed](results/figures/macro_f1_by_seed.png)
+
 ## Repository layout
 
 ```text
@@ -190,7 +223,8 @@ battery-electrode-defect-augmentation/
 ├── results/                              # per-seed metrics and summaries
 ├── scripts/
 │   ├── run_experiments.py                # validation and multi-seed training CLI
-│   └── summarize_results.py              # mean and standard-deviation tables
+│   ├── summarize_results.py              # mean and standard-deviation tables
+│   └── analyze_results.py                # paired tests and result figures
 ├── src/battery_defects/                  # shared experiment pipeline
 └── notebooks/multilabel/
     ├── 01_multilabel_exploration.ipynb
@@ -241,6 +275,7 @@ Run every method across the five configured seeds:
 ```bash
 python scripts/run_experiments.py --method all --all-seeds
 python scripts/summarize_results.py
+python scripts/analyze_results.py
 ```
 
 The notebooks remain useful for exploration and generator training. Their execution order is documented in [`notebooks/multilabel/README.md`](notebooks/multilabel/README.md).
@@ -260,7 +295,6 @@ python notebooks/multilabel/generate_readme.py --check
 ## Limitations and next steps
 
 - Five seeds quantify training variability, but the results still come from one fixed dataset split.
-- Add paired confidence intervals or a paired significance analysis across seeds.
 - Compare several synthetic-data quantities against a sample-budget-matched oversampling control.
 - Inspect real/generated grids, diversity, and nearest neighbours before claiming synthetic quality.
 - Add automated tests for split leakage, dataset routing, threshold selection, and metric aggregation.
