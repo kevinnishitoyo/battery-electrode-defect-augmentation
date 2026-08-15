@@ -1,0 +1,42 @@
+{
+  "seeds": [
+    42,
+    123,
+    456,
+    789,
+    2026
+  ],
+  "epochs": 30,
+  "patience": 5,
+  "min_delta": 0.0001,
+  "batch_size": 32,
+  "learning_rate": 0.001,
+  "num_workers": 0,
+  "pretrained": true,
+  "threshold_grid": [
+    0.05,
+    0.1,
+    0.15,
+    0.2,
+    0.25,
+    0.3,
+    0.35,
+    0.4,
+    0.45,
+    0.5,
+    0.55,
+    0.6,
+    0.65,
+    0.7,
+    0.75,
+    0.8,
+    0.85,
+    0.9,
+    0.95
+  ],
+  "method": "baseline",
+  "seed": 123,
+  "device": "mps",
+  "run_name": null,
+  "evaluate_test": true
+}
