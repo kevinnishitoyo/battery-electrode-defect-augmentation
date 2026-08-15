@@ -38,7 +38,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-    "data: tests requiring private real or synthetic images",
+    "data: tests requiring locally downloaded real or synthetic images",
 ]
 
 [tool.ruff]

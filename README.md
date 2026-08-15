@@ -138,14 +138,24 @@ Create the virtual environment and install the locked dependencies:
 uv sync
 ```
 
-Verify the installation using tests that do not require private image files:
+Verify the installation using tests that do not require locally downloaded real or synthetic image files:
 
 ```bash
 uv run pytest -q -m "not data"
 ```
+## Dataset
+
+This project uses the public [Battery Electrode Coating Defect Dataset](https://www.kaggle.com/datasets/vigneshirtt/li-ion-battery-coating-defect-dataset).
+
+Kaggle lists the dataset under **CC0: Public Domain**. The raw images are not duplicated in this repository.
+
+Please cite the associated publication:
+
+Sampath, V., Lee, A.S., Miller, S.D. et al. *A Defect Dataset for Electrode Coating Manufacturing*. Scientific Data (2026). https://doi.org/10.1038/s41597-025-06419-1
+
 ## Data setup
 
-Place the private dataset under:
+Download and extract the Kaggle dataset, then place its classification files under:
 
 ```text
 data/raw/archive/classification/
