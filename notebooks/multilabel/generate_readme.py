@@ -226,7 +226,7 @@ battery-electrode-defect-augmentation/
 │   ├── raw/archive/classification/       # local labels and real images
 │   ├── processed/multilabel/             # frozen splits and metric CSVs
 │   └── synthetic/                        # generated images and metadata
-├── models/multilabel/                    # local checkpoints
+├── models/multilabel/                    # tracked trained checkpoints
 ├── results/                              # per-seed metrics and summaries
 ├── scripts/
 │   ├── run_experiments.py                # validation and multi-seed training CLI
@@ -246,12 +246,13 @@ battery-electrode-defect-augmentation/
     ├── 08_vae_augmented_classifier.ipynb
     ├── 09_conditional_gan.ipynb
     ├── 10_gan_augmented_classifier.ipynb
-    ├── 12_vae_oversampling.ipynb
     ├── 11_multilabel_comparison.ipynb
+    ├── 12_vae_oversampling.ipynb
     ├── generative_models.py
     ├── multilabel_utils.py
     └── generate_readme.py
 ```
+
 ## Installation
 
 This project uses Python 3.12 and [`uv`](https://docs.astral.sh/uv/) for reproducible dependency management.
@@ -274,6 +275,7 @@ Verify the installation using tests that do not require locally downloaded real 
 ```bash
 uv run pytest -q -m "not data"
 ```
+
 ## Dataset
 
 This project uses the public [Battery Electrode Coating Defect Dataset](https://www.kaggle.com/datasets/vigneshirtt/li-ion-battery-coating-defect-dataset).
