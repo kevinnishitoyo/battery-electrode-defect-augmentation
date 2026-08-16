@@ -2,13 +2,27 @@
 
 Synthetic-data augmentation for multilabel lithium-ion battery electrode coating defect classification using a ResNet-18 classifier, conditional VAE, and conditional GAN.
 
-> This README is generated from the frozen split manifests and metric CSVs. Do not edit its result tables manually; run `uv run python notebooks/multilabel/generate_readme.py` instead.
+**Dataset:** [Battery Electrode Coating Defect Dataset](https://www.kaggle.com/datasets/vigneshirtt/li-ion-battery-coating-defect-dataset?resource=download) (CC0: Public Domain).
+
+> **Key finding:** Ordinary oversampling achieved the highest mean macro F1 (0.9498 ± 0.0106) and outperformed every learned synthetic-augmentation arm.
 
 ## Research question
 
 Do synthetic minority-defect images improve classification beyond strong non-generative controls such as class weighting and random oversampling?
 
 The three independent targets are Surface Crack, Delamination, and Pinhole. Images can contain more than one recognized defect. Unclassified images and rows without a recognized defect are excluded.
+
+## Who does what
+
+| Component | Role | Purpose in this project |
+|---|---|---|
+| ResNet-18 | Multilabel classifier | Predicts Surface Crack, Delamination, and Pinhole; the classifier architecture is fixed across every experimental arm |
+| Conditional VAE | Image generator | Learns label-conditioned training images for the VAE augmentation arms |
+| Conditional GAN | Image generator | Learns label-conditioned training images for the GAN augmentation arm |
+| Weighted BCE | Loss rebalancing | Increases the loss contribution of minority positive labels without generating images |
+| Oversampling | Sampling rebalancing | Draws minority-label training images more often using a weighted sampler |
+| Validation split | Model and threshold selection | Selects checkpoints and per-class decision thresholds without using test data |
+| Real-only test split | Final evaluation | Measures every trained classifier on the same held-out real images |
 
 ## Experimental protocol
 
@@ -208,6 +222,10 @@ Check that it is current without rewriting it:
 ```bash
 uv run python notebooks/multilabel/generate_readme.py --check
 ```
+
+### Maintaining this README
+
+Dataset counts, result tables, and statistical comparisons are generated from the frozen manifests and metric CSVs so the documentation cannot silently drift from the experiment artifacts. Edit narrative content in `notebooks/multilabel/generate_readme.py`, then regenerate `README.md` with the command above.
 
 Run the automated tests:
 
